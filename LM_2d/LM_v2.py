@@ -41,16 +41,15 @@ class dataset:
             wordCount += 1
         self.total_word_count = wordCount
         print(self.name + ".conll contains " + str(len(self.sentences)) + " sentences")
-        print(self.name + ".conll contains " + str(self.total_word_count) + " words")
+        print(self.name + ".conll contains " + str(self.total_word_count) +" words")
 
 class linear_model:
     def __init__(self):
         self.feature = dict()
-        self.feature_length = 0
         self.tags = dict()
-        self.v = []
-        self.update_times =[]
-        self.w = []
+        self.matrix_v = []
+        self.matrix_update_times =[]
+        self.matrix_model = []
         self.train = dataset()
         self.dev = dataset()
 
@@ -122,55 +121,51 @@ class linear_model:
                 else:
                     self.tags[s.tag[p]] = tag_index
                     tag_index += 1
-        self.w = [0]*(len(self.feature)*len(self.tags))
-        self.v = [0]*(len(self.feature)*len(self.tags))
-        self.update_times = [0]*(len(self.feature)*len(self.tags))
-        self.feature_length = len(self.feature)
-        print("the total number of features is " + str(self.feature_length))
-        print("the total number of tags is " + str(len(self.tags)))
+        self.matrix_model = [[0 for col in range(len(self.tags))] for row in range(len(self.feature))]
+        self.matrix_v = [[0 for col in range(len(self.tags))] for row in range(len(self.feature))]
+        self.matrix_update_times = [[0 for col in range(len(self.tags))] for row in range(len(self.feature))]
+        print("the total number of features is "+str(len(self.feature)))
+        print("the total number of tags is "+str(len(self.tags)))
 
-    def dot(self, f_id, offset):
+    def dot(self, f, tag):
         score = 0
-        for f in f_id:
-            score += self.w[offset + f]
+        tag_index = self.tags[tag]
+        for feature in f:
+            if(feature in self.feature):
+                feature_index = self.feature[feature]
+                score += self.matrix_model[feature_index][tag_index]
         return score
 
-    def get_feature_id(self, fv):
-        fv_id = []
-        for feature in fv:
-            if(feature in self.feature):
-                fv_id.append(self.feature[feature])
-        return fv_id;
-	
     def max_tag(self, sentence, pos):
-        maxscore = -1e10
-        tempscore = 0
+        maxnum = -1e10
+        tempnum = 0
         tag = "NULL"
-        fv = self.create_feature(sentence, pos)
-        fv_id = self.get_feature_id(fv)
         for t in self.tags:
-            tempscore = self.dot(fv_id, self.feature_length * self.tags[t])
-            if(tempscore > (maxscore + 1e-10)):
-                maxscore = tempscore
+            fv = self.create_feature(sentence, pos)
+            tempnum = self.dot(fv, t)
+            if(tempnum > (maxnum + 1e-10)):
+                maxnum = tempnum
                 tag = t
         return tag
 
-    def dot_v(self, f_id, offset):
+    def dot_v(self, f, tag):
         score = 0
-        for f in f_id:
-            score += self.v[offset + f]
+        tag_index = self.tags[tag]
+        for feature in f:
+            if(feature in self.feature):
+                feature_index = self.feature[feature]
+                score += self.matrix_v[feature_index][tag_index]
         return score
 
     def max_tag_v(self, sentence, pos):
-        maxscore = -1e10
-        tempscore = 0
+        maxnum = -1e10
+        tempnum = 0
         tag = "NULL"
-        fv = self.create_feature(sentence, pos)
-        fv_id = self.get_feature_id(fv)
         for t in self.tags:
-            tempscore = self.dot_v(fv_id, len(self.feature) * self.tags[t])
-            if(tempscore > (maxscore + 1e-10)):
-                maxscore = tempscore
+            fv = self.create_feature(sentence, pos)
+            tempnum = self.dot_v(fv, t)
+            if(tempnum > (maxnum + 1e-10)):
+                maxnum = tempnum
                 tag = t
         return tag
 
@@ -186,37 +181,42 @@ class linear_model:
                 for p in range(0, len(s.word)):
                     times += 1
                     max_tag = self.max_tag(s, p)
-                    correct_tag = s.tag[p]
-                    if(max_tag != correct_tag):
+                    correcttag = s.tag[p]
+                    if(max_tag != correcttag):
                         update_times += 1
-                        f = self.create_feature(s, p)
-                        f_id = self.get_feature_id(f)
-                        maxtag_id = self.tags[max_tag]
-                        correcttag_id = self.tags[correct_tag]
-                        for i in f_id:
-                            last_v_value = self.w[self.feature_length * maxtag_id + i]    #更新前的权重
-                            self.w[self.feature_length * maxtag_id + i] -= 1
-                            last_update_times = self.update_times[self.feature_length * maxtag_id + i]    #上一次更新所在的次数
-                            current_update_times = update_times    #本次更新所在的次数
-                            self.update_times[self.feature_length * maxtag_id + i] = update_times
-                            self.v[self.feature_length * maxtag_id + i] += (current_update_times - last_update_times -1 )*last_v_value + self.w[self.feature_length * maxtag_id + i]
-                        for i in f_id:
-                            last_v_value = self.w[self.feature_length * correcttag_id + i]    #更新前的权重
-                            self.w[self.feature_length * correcttag_id + i] += 1
-                            last_update_times = self.update_times[self.feature_length * correcttag_id + i]    #上一次更新所在的次数
-                            current_update_times = update_times    #本次更新所在的次数
-                            self.update_times[self.feature_length * correcttag_id + i] = update_times
-                            self.v[self.feature_length * correcttag_id + i] += (current_update_times - last_update_times - 1)*last_v_value + self.w[self.feature_length * correcttag_id + i]
+                        fmaxtag = self.create_feature(s, p)
+                        fcorrecttag = self.create_feature(s, p)
+                        maxtag_index = self.tags[max_tag]
+                        correcttag_index = self.tags[correcttag]
+                        for i in fmaxtag:
+                            if(i in self.feature):
+                                feature_index = self.feature[i]
+                                last_v_value = self.matrix_model[feature_index][maxtag_index]
+                                self.matrix_model[feature_index][maxtag_index] -= 1
+                                last_update_times = self.matrix_update_times[feature_index][maxtag_index]    #上一次更新所在的次数
+                                current_update_times = update_times    #本次更新所在的次数
+                                self.matrix_update_times[feature_index][maxtag_index] = update_times
+                                self.matrix_v[feature_index][maxtag_index] += (current_update_times - last_update_times -1 )*last_v_value + self.matrix_model[feature_index][maxtag_index]
+                        for i in fcorrecttag:
+                            if(i in self.feature):
+                                feature_index = self.feature[i]
+                                last_v_value = self.matrix_model[feature_index][maxtag_index]
+                                self.matrix_model[feature_index][correcttag_index] += 1
+                                last_update_times = self.matrix_update_times[feature_index][maxtag_index]    #上一次更新所在的次数
+                                current_update_times = update_times    #本次更新所在的次数
+                                self.matrix_update_times[feature_index][maxtag_index] = update_times
+                                self.matrix_v[feature_index][maxtag_index] += (current_update_times - last_update_times - 1)*last_v_value + self.matrix_model[feature_index][maxtag_index]
             #本次迭代完成
             current_update_times = update_times    #本次更新所在的次数
-            for i in range(len(self.v)):
-                last_v_value = self.w[i]
-                last_update_times = self.update_times[i]    #上一次更新所在的次数
-                if(current_update_times != last_update_times):
-                    self.update_times[i] = current_update_times
-                    self.v[i] += (current_update_times - last_update_times - 1)*last_v_value + self.w[i]
+            for row in range(len(self.matrix_v)):
+                for col in range(len(self.matrix_v[row])):
+                    last_v_value = self.matrix_model[row][col]
+                    last_update_times = self.matrix_update_times[row][col]    #上一次更新所在的次数
+                    if(current_update_times != last_update_times):
+                        self.matrix_update_times[row][col] = current_update_times
+                        self.matrix_v[row][col] += (current_update_times - last_update_times - 1)*last_v_value + self.matrix_model[row][col]
                     
-            #self.save_model(iterator)
+            self.save_model(iterator)
             train_iterator, train_c, train_count, train_precision = self.evaluate(self.train, iterator)
             dev_iterator, dev_c, dev_count, dev_precision = self.evaluate(self.dev, iterator)
             if(train_precision > (max_train_precision + 1e-10)):
@@ -230,24 +230,24 @@ class linear_model:
                 max_dev_c = dev_c
                 max_dev_count  = dev_count
         print("Conclusion:")
-        print("\t"+self.train.name + " iterator: "+str(max_train_iterator)+"\t"+str(max_train_c)+" / "+str(max_train_count) + " = " +str(max_train_precision))
-        print("\t"+self.dev.name + " iterator: "+str(max_dev_iterator)+"\t"+str(max_dev_c)+" / "+str(max_dev_count) + " = " +str(max_dev_precision))
+        print("\t"+self.train.name + " iterator: " + str(max_train_iterator) + "\t" + str(max_train_c) + " / " + str(max_train_count) + " = " + str(max_train_precision))
+        print("\t"+self.dev.name + " iterator: " + str(max_dev_iterator) + "\t" + str(max_dev_c) + " / " + str(max_dev_count) + " = " + str(max_dev_precision))
 
     def save_model(self, iterator):
         fmodel = open("linearmodel.lm"+str(iterator), mode='w')
-        for tag in self.tags:
-            tag_id = self.tags[tag]
-            for feature in self.feature:
-                entire_feature = feature.split(':')[0]+":"+tag+"*"+feature.split(':')[1]
-                w = self.w[tag_id * self.feature_length + self.feature[feature]]
-                if(w != 0):
-                    fmodel.write(entire_feature + '\t' + str(w) + '\n')
+        for feature in self.feature:
+            feature_index = self.feature[feature]
+            for tag in self.tags:
+                tag_index = self.tags[tag]
+                if(self.matrix_model[feature_index][tag_index] != 0):
+                    entire_feature = feature.split(':')[0] + ":" + tag + "*" + feature.split(':')[1]
+                    fmodel.write(entire_feature + '\t' + str(self.matrix_model[feature_index][tag_index]) + '\n')
         fmodel.close()
 
     def evaluate(self, dataset, iterator):
        c = 0
        count = 0
-       fout = open(dataset.name+".out" + str(iterator), mode='w')
+       fout = open(dataset.name + ".out" + str(iterator), mode='w')
        for s in dataset.sentences:
            for p in range(0, len(s.word)):
                count += 1
