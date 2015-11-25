@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 #coding=utf-8
 import datetime
 
@@ -23,16 +23,18 @@ class dataset:
 
     def read_data(self, sentenceLen):
         wordCount = 0
+        sentenceCount = 0
         sen = sentence()
         for s in self.inputfile:
             if(s == '\n'):
+                sentenceCount += 1
                 self.sentences.append(sen)
                 sen = sentence()
                 if(sentenceLen !=-1 and sentenceCount >= sentenceLen):
                     break
                 continue
             list_s = s.split('\t')
-            str_word = list_s[1]
+            str_word = list_s[1].decode('utf-8')
             str_tag = list_s[3]
             list_wordchars = list(str_word)
             sen.word.append(str_word)
@@ -46,6 +48,8 @@ class dataset:
 class linear_model:
     def __init__(self):
         self.feature = dict()
+        self.feature_keys = []
+        self.feature_values = []
         self.feature_length = 0
         self.tags = dict()
         self.v = []
@@ -126,6 +130,8 @@ class linear_model:
         self.v = [0]*(len(self.feature)*len(self.tags))
         self.update_times = [0]*(len(self.feature)*len(self.tags))
         self.feature_length = len(self.feature)
+        self.feature_keys = list(self.feature.keys())
+        self.feature_values = list(self.feature.values())
         print("the total number of features is " + str(self.feature_length))
         print("the total number of tags is " + str(len(self.tags)))
 
@@ -175,8 +181,8 @@ class linear_model:
         return tag
 
     def online_training(self):
-        max_train_precision = 0
-        max_dev_precision = 0
+        max_train_precision = 0.0
+        max_dev_precision = 0.0
         update_times = 0
         word_count = self.train.total_word_count
         for iterator in range(0, 20):
@@ -216,7 +222,7 @@ class linear_model:
                     self.update_times[i] = current_update_times
                     self.v[i] += (current_update_times - last_update_times - 1)*last_v_value + self.w[i]
                     
-            #self.save_model(iterator)
+            self.save_model(iterator)
             train_iterator, train_c, train_count, train_precision = self.evaluate(self.train, iterator)
             dev_iterator, dev_c, dev_count, dev_precision = self.evaluate(self.dev, iterator)
             if(train_precision > (max_train_precision + 1e-10)):
@@ -235,13 +241,14 @@ class linear_model:
 
     def save_model(self, iterator):
         fmodel = open("linearmodel.lm"+str(iterator), mode='w')
-        for tag in self.tags:
-            tag_id = self.tags[tag]
-            for feature in self.feature:
+        for feature_id in self.feature_values:
+            feature = self.feature_keys[feature_id]
+            for tag in self.tags:
+                tag_id = self.tags[tag]
                 entire_feature = feature.split(':')[0]+":"+tag+"*"+feature.split(':')[1]
-                w = self.w[tag_id * self.feature_length + self.feature[feature]]
+                w = self.w[tag_id * self.feature_length + feature_id]
                 if(w != 0):
-                    fmodel.write(entire_feature + '\t' + str(w) + '\n')
+                    fmodel.write(entire_feature.encode('utf-8') + '\t' + str(w) + '\n')
         fmodel.close()
 
     def evaluate(self, dataset, iterator):
@@ -253,20 +260,21 @@ class linear_model:
                count += 1
                max_tag = self.max_tag_v(s, p)
                correcttag = s.tag[p]
-               fout.write(s.word[p] + '\t' + str(max_tag) + '\t' + str(correcttag) + '\n')
+               fout.write(s.word[p].encode('utf-8') + '\t' + str(max_tag) + '\t' + str(correcttag) + '\n')
                if(max_tag != correcttag):
                    pass
                else:
                    c += 1
-       print(dataset.name + "\tprecision is " + str(c) + " / " + str(count) + " = " + str(c/count))
+       print(dataset.name + "\tprecision is " + str(c) + " / " + str(count) + " = " + str(1.0 * c/count))
        fout.close()
-       return iterator, c, count, c/count     
+       return iterator, c, count, 1.0 * c/count     
 
 
 ################################ main #####################################
-starttime = datetime.datetime.now()
-lm = linear_model()
-lm.create_feature_space()
-lm.online_training()
-endtime = datetime.datetime.now()
-print("executing time is "+str((endtime-starttime).seconds)+" s")
+if __name__ == '__main__':
+    starttime = datetime.datetime.now()
+    lm = linear_model()
+    lm.create_feature_space()
+    lm.online_training()
+    endtime = datetime.datetime.now()
+    print("executing time is "+str((endtime-starttime).seconds)+" s")

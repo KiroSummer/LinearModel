@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 #coding=utf-8
 import datetime
 
@@ -32,7 +32,7 @@ class dataset:
                     break
                 continue
             list_s = s.split('\t')
-            str_word = list_s[1]
+            str_word = list_s[1].decode('utf-8')
             str_tag = list_s[3]
             list_wordchars = list(str_word)
             sen.word.append(str_word)
@@ -241,7 +241,7 @@ class linear_model:
                 tag_index = self.tags[tag]
                 if(self.matrix_model[feature_index][tag_index] != 0):
                     entire_feature = feature.split(':')[0] + ":" + tag + "*" + feature.split(':')[1]
-                    fmodel.write(entire_feature + '\t' + str(self.matrix_model[feature_index][tag_index]) + '\n')
+                    fmodel.write(entire_feature.encode('utf-8') + '\t' + str(self.matrix_model[feature_index][tag_index]) + '\n')
         fmodel.close()
 
     def evaluate(self, dataset, iterator):
@@ -253,20 +253,21 @@ class linear_model:
                count += 1
                max_tag = self.max_tag_v(s, p)
                correcttag = s.tag[p]
-               fout.write(s.word[p] + '\t' + str(max_tag) + '\t' + str(correcttag) + '\n')
+               fout.write(s.word[p].encode('utf-8') + '\t' + str(max_tag) + '\t' + str(correcttag) + '\n')
                if(max_tag != correcttag):
                    pass
                else:
                    c += 1
-       print(dataset.name + "\tprecision is " + str(c) + " / " + str(count) + " = " + str(c/count))
+       print(dataset.name + "\tprecision is " + str(c) + " / " + str(count) + " = " + str(1.0 * c/count))
        fout.close()
-       return iterator, c, count, c/count     
+       return iterator, c, count, 1.0 * c/count     
 
 
 ################################ main #####################################
-starttime = datetime.datetime.now()
-lm = linear_model()
-lm.create_feature_space()
-lm.online_training()
-endtime = datetime.datetime.now()
-print("executing time is "+str((endtime-starttime).seconds)+" s")
+if __name__ == '__main__':
+    starttime = datetime.datetime.now()
+    lm = linear_model()
+    lm.create_feature_space()
+    lm.online_training()
+    endtime = datetime.datetime.now()
+    print("executing time is "+str((endtime-starttime).seconds)+" s")
