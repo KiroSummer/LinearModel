@@ -1,6 +1,8 @@
 # LinearModel
+
 1.Project Structure:
-    ./data/:
+
+	./data/:
         train.conll: the training data.
         dev.conll: the develop data.
     ./LM:
@@ -14,7 +16,8 @@
         The programs' result on mu computer.
 
 2.How to run the LM?
-    We have three code files in total in the project and we can run them all.
+    
+	We have three code files in total in the project and we can run them all.
     To run these project, you should prepare the following things:
         python2.7
         move data files in the same folder with the code files
