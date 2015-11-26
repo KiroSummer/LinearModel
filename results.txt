@@ -1,7 +1,7 @@
 		LM.py		LM_v1.py	LM_v2.py
 		v		v	w	v	w
-executing time	267s		76s	74s	243s	236s
-train precision	99.6%		99.2%	99.8%	99.3%	99.8%
-dev precision	84.6%		85.7%	84.9%	86.0%	84.9%
+executing time	267s		64s	63s	242s	240s
+train precision	99.6%		99.2%	99.8%	99.2%	99.8%
+dev precision	84.6%		85.7%	84.9%	85.7%	84.9%
 
 iterator:20

@@ -52,6 +52,7 @@ class linear_model:
         self.feature_values = []
         self.feature_length = 0
         self.tags = dict()
+        self.tags_length = 0
         self.v = []
         self.update_times =[]
         self.w = []
@@ -71,37 +72,37 @@ class linear_model:
         wi = sentence.word[pos]
         pos_word_len = len(sentence.word[pos])
         if(pos == 0):
-            wim1 = "START"
-            cim1m1 = "T"
+            wi_left_word = "START"
+            wi_left_word_last_c = "T"
         else:
-            wim1 = sentence.word[pos-1]
-            cim1m1 = sentence.wordchars[pos-1][len(sentence.word[pos-1])-1]
+            wi_left_word = sentence.word[pos-1]
+            wi_left_word_last_c = sentence.wordchars[pos-1][len(sentence.word[pos-1])-1]
         if(pos == word_count-1):
-            wip1 = "END"
-            cip10 = "E"
+            wi_right_word = "END"
+            wi_right_word_first_c = "E"
         else:
-            wip1 = sentence.word[pos+1]
-            cip10 = sentence.wordchars[pos+1][0]
-        cim1 = sentence.wordchars[pos][pos_word_len - 1]
-        ci0 = sentence.wordchars[pos][0]
+            wi_right_word = sentence.word[pos+1]
+            wi_right_word_first_c = sentence.wordchars[pos+1][0]
+        wi_last_word = sentence.wordchars[pos][pos_word_len - 1]
+        wi_first_word = sentence.wordchars[pos][0]
         f = []
         f.append("02:" + wi)
-        f.append("03:" + wim1)
-        f.append("04:" + wip1)
-        f.append("05:" + cim1m1)
-        f.append("06:" + cip10)
-        f.append("07:" + ci0)
-        f.append("08:" + cim1)
+        f.append("03:" + wi_left_word)
+        f.append("04:" + wi_right_word)
+        f.append("05:" + wi_left_word_last_c)
+        f.append("06:" + wi_right_word_first_c)
+        f.append("07:" + wi_first_word)
+        f.append("08:" + wi_last_word)
         for i in range(1, pos_word_len - 2):
-            cik = sentence.wordchars[pos][i]
-            f.append("09:" + cik)
-            f.append("10:" + ci0 + "*" + cik)
-            f.append("11:" + cim1 + "*" + cik)
-            cikp1 = sentence.wordchars[pos][i + 1]
-            if(cik == cikp1):
-                f.append("12:" + cik + "*" + "consecutive")
+            wi_kth_c = sentence.wordchars[pos][i]
+            f.append("09:" + wi_kth_c)
+            f.append("10:" + wi_first_word + "*" + wi_kth_c)
+            f.append("11:" + wi_last_word + "*" + wi_kth_c)
+            wi_kth_next_c = sentence.wordchars[pos][i + 1]
+            if(wi_kth_c == wi_kth_next_c):
+                f.append("12:" + wi_kth_c + "*" + "consecutive")
         if(pos_word_len == 1):
-            f.append("13:" + wi + "*" + cim1m1 + "*" + cip10)
+            f.append("13:" + wi + "*" + wi_left_word_last_c + "*" + wi_right_word_first_c)
         for i in range(0, pos_word_len - 1):
             if(i >= 4):
                 break
@@ -126,14 +127,15 @@ class linear_model:
                 else:
                     self.tags[s.tag[p]] = tag_index
                     tag_index += 1
-        self.w = [0]*(len(self.feature)*len(self.tags))
-        self.v = [0]*(len(self.feature)*len(self.tags))
-        self.update_times = [0]*(len(self.feature)*len(self.tags))
         self.feature_length = len(self.feature)
+        self.tags_length = len(self.tags)
+        self.w = [0]*(self.feature_length * self.tags_length)
+        self.v = [0]*(self.feature_length * self.tags_length)
+        self.update_times = [0]*(self.feature_length * self.tags_length)
         self.feature_keys = list(self.feature.keys())
         self.feature_values = list(self.feature.values())
         print("the total number of features is " + str(self.feature_length))
-        print("the total number of tags is " + str(len(self.tags)))
+        print("the total number of tags is " + str(self.tags_length))
 
     def dot(self, f_id, offset):
         score = 0
@@ -149,7 +151,7 @@ class linear_model:
         return fv_id;
 	
     def max_tag(self, sentence, pos):
-        maxscore = -1e10
+        maxscore = -1
         tempscore = 0
         tag = "NULL"
         fv = self.create_feature(sentence, pos)
@@ -168,17 +170,41 @@ class linear_model:
         return score
 
     def max_tag_v(self, sentence, pos):
-        maxscore = -1e10
+        maxscore = -1
         tempscore = 0
         tag = "NULL"
         fv = self.create_feature(sentence, pos)
         fv_id = self.get_feature_id(fv)
         for t in self.tags:
-            tempscore = self.dot_v(fv_id, len(self.feature) * self.tags[t])
+            tempscore = self.dot_v(fv_id, self.feature_length * self.tags[t])
             if(tempscore > (maxscore + 1e-10)):
                 maxscore = tempscore
                 tag = t
         return tag
+
+    def update_v(self, index, update_times, last_w_value):		
+        last_update_times = self.update_times[index]    #上一次更新所在的次数
+        current_update_times = update_times    #本次更新所在的次数
+        self.update_times[index] = update_times
+        self.v[index] += (current_update_times - last_update_times -1 )*last_w_value + self.w[index]
+
+    def update_weight(self, s, p, max_tag, correct_tag, update_times):
+        f = self.create_feature(s, p)
+        f_id = self.get_feature_id(f)
+        maxtag_id = self.tags[max_tag]
+        correcttag_id = self.tags[correct_tag]
+        for i in f_id:
+            offset = self.feature_length * maxtag_id
+            index = offset + i
+            last_w_value = self.w[index]    #更新前的权重
+            self.w[index] -= 1
+            self.update_v(index, update_times, last_w_value)
+        for i in f_id:
+            offset = self.feature_length * correcttag_id
+            index = offset + i
+            last_w_value = self.w[index]    #更新前的权重
+            self.w[index] += 1
+            self.update_v(index, update_times, last_w_value)
 
     def online_training(self):
         max_train_precision = 0.0
@@ -187,44 +213,27 @@ class linear_model:
         word_count = self.train.total_word_count
         for iterator in range(0, 20):
             print("iterator " + str(iterator))
-            times = 0
             for s in self.train.sentences:
                 for p in range(0, len(s.word)):
-                    times += 1
                     max_tag = self.max_tag(s, p)
                     correct_tag = s.tag[p]
                     if(max_tag != correct_tag):
                         update_times += 1
-                        f = self.create_feature(s, p)
-                        f_id = self.get_feature_id(f)
-                        maxtag_id = self.tags[max_tag]
-                        correcttag_id = self.tags[correct_tag]
-                        for i in f_id:
-                            last_v_value = self.w[self.feature_length * maxtag_id + i]    #更新前的权重
-                            self.w[self.feature_length * maxtag_id + i] -= 1
-                            last_update_times = self.update_times[self.feature_length * maxtag_id + i]    #上一次更新所在的次数
-                            current_update_times = update_times    #本次更新所在的次数
-                            self.update_times[self.feature_length * maxtag_id + i] = update_times
-                            self.v[self.feature_length * maxtag_id + i] += (current_update_times - last_update_times -1 )*last_v_value + self.w[self.feature_length * maxtag_id + i]
-                        for i in f_id:
-                            last_v_value = self.w[self.feature_length * correcttag_id + i]    #更新前的权重
-                            self.w[self.feature_length * correcttag_id + i] += 1
-                            last_update_times = self.update_times[self.feature_length * correcttag_id + i]    #上一次更新所在的次数
-                            current_update_times = update_times    #本次更新所在的次数
-                            self.update_times[self.feature_length * correcttag_id + i] = update_times
-                            self.v[self.feature_length * correcttag_id + i] += (current_update_times - last_update_times - 1)*last_v_value + self.w[self.feature_length * correcttag_id + i]
+                        self.update_weight(s, p, max_tag, correct_tag, update_times)
             #本次迭代完成
             current_update_times = update_times    #本次更新所在的次数
             for i in range(len(self.v)):
-                last_v_value = self.w[i]
+                last_w_value = self.w[i]
                 last_update_times = self.update_times[i]    #上一次更新所在的次数
                 if(current_update_times != last_update_times):
                     self.update_times[i] = current_update_times
-                    self.v[i] += (current_update_times - last_update_times - 1)*last_v_value + self.w[i]
+                    self.v[i] += (current_update_times - last_update_times - 1)*last_w_value + self.w[i]
                     
             self.save_model(iterator)
+            #进行评估
             train_iterator, train_c, train_count, train_precision = self.evaluate(self.train, iterator)
             dev_iterator, dev_c, dev_count, dev_precision = self.evaluate(self.dev, iterator)
+            #保存概率最大的情况
             if(train_precision > (max_train_precision + 1e-10)):
                 max_train_precision = train_precision
                 max_train_iterator = train_iterator
@@ -243,9 +252,11 @@ class linear_model:
         fmodel = open("linearmodel.lm"+str(iterator), mode='w')
         for feature_id in self.feature_values:
             feature = self.feature_keys[feature_id]
+            left_feature = feature.split(':')[0] + ':'
+            right_feature = '*' + feature.split(':')[1]
             for tag in self.tags:
                 tag_id = self.tags[tag]
-                entire_feature = feature.split(':')[0]+":"+tag+"*"+feature.split(':')[1]
+                entire_feature = left_feature + tag+"*" + right_feature
                 w = self.w[tag_id * self.feature_length + feature_id]
                 if(w != 0):
                     fmodel.write(entire_feature.encode('utf-8') + '\t' + str(w) + '\n')

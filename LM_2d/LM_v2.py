@@ -137,7 +137,7 @@ class linear_model:
         return score
 
     def max_tag(self, sentence, pos):
-        maxnum = -1e10
+        maxnum = -1
         tempnum = 0
         tag = "NULL"
         for t in self.tags:
@@ -158,7 +158,7 @@ class linear_model:
         return score
 
     def max_tag_v(self, sentence, pos):
-        maxnum = -1e10
+        maxnum = -1
         tempnum = 0
         tag = "NULL"
         for t in self.tags:
@@ -170,16 +170,14 @@ class linear_model:
         return tag
 
     def online_training(self):
-        max_train_precision = 0
-        max_dev_precision = 0
+        max_train_precision = 0.0
+        max_dev_precision = 0.0
         update_times = 0
         word_count = self.train.total_word_count
         for iterator in range(0, 20):
             print("iterator " + str(iterator))
-            times = 0
             for s in self.train.sentences:
                 for p in range(0, len(s.word)):
-                    times += 1
                     max_tag = self.max_tag(s, p)
                     correcttag = s.tag[p]
                     if(max_tag != correcttag):
@@ -200,12 +198,12 @@ class linear_model:
                         for i in fcorrecttag:
                             if(i in self.feature):
                                 feature_index = self.feature[i]
-                                last_v_value = self.matrix_model[feature_index][maxtag_index]
+                                last_v_value = self.matrix_model[feature_index][correcttag_index]
                                 self.matrix_model[feature_index][correcttag_index] += 1
-                                last_update_times = self.matrix_update_times[feature_index][maxtag_index]    #上一次更新所在的次数
+                                last_update_times = self.matrix_update_times[feature_index][correcttag_index]    #上一次更新所在的次数
                                 current_update_times = update_times    #本次更新所在的次数
-                                self.matrix_update_times[feature_index][maxtag_index] = update_times
-                                self.matrix_v[feature_index][maxtag_index] += (current_update_times - last_update_times - 1)*last_v_value + self.matrix_model[feature_index][maxtag_index]
+                                self.matrix_update_times[feature_index][correcttag_index] = update_times
+                                self.matrix_v[feature_index][correcttag_index] += (current_update_times - last_update_times - 1)*last_v_value + self.matrix_model[feature_index][correcttag_index]
             #本次迭代完成
             current_update_times = update_times    #本次更新所在的次数
             for row in range(len(self.matrix_v)):
@@ -251,7 +249,7 @@ class linear_model:
        for s in dataset.sentences:
            for p in range(0, len(s.word)):
                count += 1
-               max_tag = self.max_tag_v(s, p)
+               max_tag = self.max_tag(s, p)
                correcttag = s.tag[p]
                fout.write(s.word[p].encode('utf-8') + '\t' + str(max_tag) + '\t' + str(correcttag) + '\n')
                if(max_tag != correcttag):
