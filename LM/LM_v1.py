@@ -26,7 +26,7 @@ class dataset:
         sentenceCount = 0
         sen = sentence()
         for s in self.inputfile:
-            if(s == '\n'):
+            if(s == '\r\n' or s == '\n'):
                 sentenceCount += 1
                 self.sentences.append(sen)
                 sen = sentence()
@@ -83,26 +83,26 @@ class linear_model:
         else:
             wi_right_word = sentence.word[pos+1]
             wi_right_word_first_c = sentence.wordchars[pos+1][0]
-        wi_last_word = sentence.wordchars[pos][pos_word_len - 1]
-        wi_first_word = sentence.wordchars[pos][0]
+        wi_last_c = sentence.wordchars[pos][pos_word_len - 1]
+        wi_first_c = sentence.wordchars[pos][0]
         f = []
         f.append("02:" + wi)
         f.append("03:" + wi_left_word)
         f.append("04:" + wi_right_word)
-        f.append("05:" + wi_left_word_last_c)
-        f.append("06:" + wi_right_word_first_c)
-        f.append("07:" + wi_first_word)
-        f.append("08:" + wi_last_word)
+        f.append("05:" + wi + '*' + wi_left_word_last_c)
+        f.append("06:" + wi + '*' + wi_right_word_first_c)
+        f.append("07:" + wi_first_c)
+        f.append("08:" + wi_last_c)
         for i in range(1, pos_word_len - 2):
             wi_kth_c = sentence.wordchars[pos][i]
             f.append("09:" + wi_kth_c)
-            f.append("10:" + wi_first_word + "*" + wi_kth_c)
-            f.append("11:" + wi_last_word + "*" + wi_kth_c)
+            f.append("10:" + wi_first_c + "*" + wi_kth_c)
+            f.append("11:" + wi_last_c + "*" + wi_kth_c)
             wi_kth_next_c = sentence.wordchars[pos][i + 1]
             if(wi_kth_c == wi_kth_next_c):
-                f.append("12:" + wi_kth_c + "*" + "consecutive")
+                f.append("13:" + wi_kth_c + "*" + "consecutive")
         if(pos_word_len == 1):
-            f.append("13:" + wi + "*" + wi_left_word_last_c + "*" + wi_right_word_first_c)
+            f.append("12:" + wi + "*" + wi_left_word_last_c + "*" + wi_right_word_first_c)
         for i in range(0, pos_word_len - 1):
             if(i >= 4):
                 break
@@ -231,21 +231,21 @@ class linear_model:
                     
             self.save_model(iterator)
             #进行评估
-            train_iterator, train_c, train_count, train_precision = self.evaluate(self.train, iterator)
+            #train_iterator, train_c, train_count, train_precision = self.evaluate(self.train, iterator)
             dev_iterator, dev_c, dev_count, dev_precision = self.evaluate(self.dev, iterator)
             #保存概率最大的情况
-            if(train_precision > (max_train_precision + 1e-10)):
-                max_train_precision = train_precision
-                max_train_iterator = train_iterator
-                max_train_c = train_c
-                max_train_count = train_count
+            #if(train_precision > (max_train_precision + 1e-10)):
+                #max_train_precision = train_precision
+                #max_train_iterator = train_iterator
+                #max_train_c = train_c
+                #max_train_count = train_count
             if(dev_precision > (max_dev_precision + 1e-10)):
                 max_dev_precision = dev_precision
                 max_dev_iterator = dev_iterator
                 max_dev_c = dev_c
                 max_dev_count  = dev_count
         print("Conclusion:")
-        print("\t"+self.train.name + " iterator: "+str(max_train_iterator)+"\t"+str(max_train_c)+" / "+str(max_train_count) + " = " +str(max_train_precision))
+        #print("\t"+self.train.name + " iterator: "+str(max_train_iterator)+"\t"+str(max_train_c)+" / "+str(max_train_count) + " = " +str(max_train_precision))
         print("\t"+self.dev.name + " iterator: "+str(max_dev_iterator)+"\t"+str(max_dev_c)+" / "+str(max_dev_count) + " = " +str(max_dev_precision))
 
     def save_model(self, iterator):
@@ -256,7 +256,7 @@ class linear_model:
             right_feature = '*' + feature.split(':')[1]
             for tag in self.tags:
                 tag_id = self.tags[tag]
-                entire_feature = left_feature + tag+"*" + right_feature
+                entire_feature = left_feature + tag + right_feature
                 w = self.w[tag_id * self.feature_length + feature_id]
                 if(w != 0):
                     fmodel.write(entire_feature.encode('utf-8') + '\t' + str(w) + '\n')
