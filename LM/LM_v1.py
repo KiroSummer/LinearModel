@@ -60,10 +60,13 @@ class linear_model:
         self.dev = dataset()
 
         self.train.open_file("train.conll")
+        #self.train.open_file("./data/train.conll")
+        #self.train.open_file("zy.txt")
         self.train.read_data(-1)
         self.train.close_file()
 
         self.dev.open_file("dev.conll")
+        #self.dev.open_file("./data/dev.conll")
         self.dev.read_data(-1)
         self.dev.close_file()
     
@@ -72,14 +75,14 @@ class linear_model:
         wi = sentence.word[pos]
         pos_word_len = len(sentence.word[pos])
         if(pos == 0):
-            wi_left_word = "START"
-            wi_left_word_last_c = "T"
+            wi_left_word = "$$"
+            wi_left_word_last_c = "$"
         else:
             wi_left_word = sentence.word[pos-1]
             wi_left_word_last_c = sentence.wordchars[pos-1][len(sentence.word[pos-1])-1]
         if(pos == word_count-1):
-            wi_right_word = "END"
-            wi_right_word_first_c = "E"
+            wi_right_word = "##"
+            wi_right_word_first_c = "#"
         else:
             wi_right_word = sentence.word[pos+1]
             wi_right_word_first_c = sentence.wordchars[pos+1][0]
@@ -93,17 +96,19 @@ class linear_model:
         f.append("06:" + wi + '*' + wi_right_word_first_c)
         f.append("07:" + wi_first_c)
         f.append("08:" + wi_last_c)
-        for i in range(1, pos_word_len - 2):
+        for i in range(1, pos_word_len - 1):
             wi_kth_c = sentence.wordchars[pos][i]
             f.append("09:" + wi_kth_c)
             f.append("10:" + wi_first_c + "*" + wi_kth_c)
             f.append("11:" + wi_last_c + "*" + wi_kth_c)
+        for i in range(0, pos_word_len - 1):
+            wi_kth_c = sentence.wordchars[pos][i]
             wi_kth_next_c = sentence.wordchars[pos][i + 1]
             if(wi_kth_c == wi_kth_next_c):
                 f.append("13:" + wi_kth_c + "*" + "consecutive")
         if(pos_word_len == 1):
             f.append("12:" + wi + "*" + wi_left_word_last_c + "*" + wi_right_word_first_c)
-        for i in range(0, pos_word_len - 1):
+        for i in range(0, pos_word_len):
             if(i >= 4):
                 break
             f.append("14:" + sentence.word[pos][0:(i + 1)])
@@ -136,6 +141,10 @@ class linear_model:
         self.feature_values = list(self.feature.values())
         print("the total number of features is " + str(self.feature_length))
         print("the total number of tags is " + str(self.tags_length))
+        #输出特征
+        #zy = open("zy_feature.txt", mode = 'w')
+        #for f in self.feature:
+            #zy.write(f.encode('utf-8')+'\n')
 
     def dot(self, f_id, offset):
         score = 0
@@ -158,7 +167,7 @@ class linear_model:
         fv_id = self.get_feature_id(fv)
         for t in self.tags:
             tempscore = self.dot(fv_id, self.feature_length * self.tags[t])
-            if(tempscore > (maxscore + 1e-10)):
+            if(tempscore >= maxscore):
                 maxscore = tempscore
                 tag = t
         return tag
@@ -177,7 +186,7 @@ class linear_model:
         fv_id = self.get_feature_id(fv)
         for t in self.tags:
             tempscore = self.dot_v(fv_id, self.feature_length * self.tags[t])
-            if(tempscore > (maxscore + 1e-10)):
+            if(tempscore >= maxscore):
                 maxscore = tempscore
                 tag = t
         return tag

@@ -66,14 +66,14 @@ class linear_model:
         wi = sentence.word[pos]
         pos_word_len = len(sentence.word[pos])
         if(pos == 0):
-            wim1 = "START"
-            cim1m1 = "T"
+            wim1 = "$$"
+            cim1m1 = "$"
         else:
             wim1 = sentence.word[pos-1]
             cim1m1 = sentence.wordchars[pos-1][len(sentence.word[pos-1])-1]
         if(pos == word_count-1):
-            wip1 = "END"
-            cip10 = "E"
+            wip1 = "##"
+            cip10 = "#"
         else:
             wip1 = sentence.word[pos+1]
             cip10 = sentence.wordchars[pos+1][0]
